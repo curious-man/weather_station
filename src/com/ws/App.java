@@ -12,36 +12,42 @@ import java.net.http.HttpResponse;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
-public class App {
+public class App implements Runnable{
 
-    public static void main(String[] args) throws InterruptedException {
-        ScheduledExecutorService pool = Executors.newScheduledThreadPool(2);
-        while (true) {
-            try {
-                pool.schedule(App :: sendDataRequest, 10, TimeUnit.SECONDS);
-            } catch (Exception e) {
-                System.out.println(e.getMessage());
-                throw e;
-            }
-            Thread.sleep(10000);
-        }
+    private static String serverUrl = "http://192.168.1.51/";
+
+    public static final Logger log = Logger.getLogger("logger");
+
+    @Override
+    public void run() {
+        sendDataRequest();
+    }
+
+    public static void main(String[] args) {
+        log.info("Start app!");
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        Runnable task = new App();
+        int delay = 10;
+        scheduler.scheduleAtFixedRate(task, delay, delay, TimeUnit.SECONDS);
     }
 
     private static void sendDataRequest()  {
         try {
             HttpClient client = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder(new URI("http://192.168.1.51/")).build();
+            HttpRequest request = HttpRequest.newBuilder(new URI(serverUrl)).build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
                 String data = response.body();
-                System.out.println(data);
+                log.fine("Get data from sensor " + data);
                 writeData(data);
             } else {
-                System.out.println("Error when try get data");
+                log.severe("Error when try get data");
             }
         } catch (URISyntaxException | InterruptedException | IOException e) {
-            System.out.println(e.getMessage());
+            log.severe(e.getMessage());
+            throw new RuntimeException(e);
         }
     }
 
